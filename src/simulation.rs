@@ -52,7 +52,10 @@ pub async fn ejecutar_simulacion(
         .map(|&sEstadoRef| sEstadoRef.to_string())
         .collect();
 
-    let mut sEstadoActual = vec_sEstadosValidos.choose(&mut rngThreadRng).unwrap().clone();
+    let mut sEstadoActual = vec_sEstadosValidos
+        .choose(&mut rngThreadRng)
+        .unwrap()
+        .clone();
     let mut uiPasoActual = 0;
 
     // Speed control: time between movements
@@ -72,7 +75,8 @@ pub async fn ejecutar_simulacion(
                     MQ_COLOR_PELIGRO
                 } else if sEstadoDeCelda == ESTADO_META {
                     MQ_COLOR_META
-                } else if sEstadoDeCelda == sEstadoActual.as_str() { // Compare &str with &str
+                } else if sEstadoDeCelda == sEstadoActual.as_str() {
+                    // Compare &str with &str
                     MQ_COLOR_ROBOT
                 } else {
                     MQ_COLOR_NORMAL
@@ -115,7 +119,10 @@ pub async fn ejecutar_simulacion(
         let sAccionElegida = if rngThreadRng.gen::<f64>() < f64EpsilonSim {
             // Explore: choose a random action
             let vec_sAccionesPosibles = acciones(); // From config.rs
-            vec_sAccionesPosibles.choose(&mut rngThreadRng).unwrap().to_string()
+            vec_sAccionesPosibles
+                .choose(&mut rngThreadRng)
+                .unwrap()
+                .to_string()
         } else {
             // Follow the optimal policy
             ref_mut_hm_s_sPolitica.get(&sEstadoActual).unwrap().clone()
@@ -154,7 +161,7 @@ fn mover(uiFila: usize, uiCol: usize, sAccion: &str) -> (usize, usize) {
     match sAccion {
         "N" => (uiFila.saturating_sub(1), uiCol),
         "S" => (uiFila + 1, uiCol), // Potential panic if uiFila+1 is out of bounds, not handled by this local mover
-        "E" => (uiFila, uiCol + 1),   // Potential panic
+        "E" => (uiFila, uiCol + 1), // Potential panic
         "O" => (uiFila, uiCol.saturating_sub(1)),
         _ => (uiFila, uiCol),
     }
@@ -189,7 +196,10 @@ pub fn simulacion_1000_pasos(
         .collect();
 
     let mut rngThreadRng = thread_rng();
-    let mut sEstadoActual = vec_sEstadosValidos.choose(&mut rngThreadRng).unwrap().clone();
+    let mut sEstadoActual = vec_sEstadosValidos
+        .choose(&mut rngThreadRng)
+        .unwrap()
+        .clone();
 
     let mut uiLlegoMetaCount = 0;
     let mut uiCayoPeligroCount = 0;
@@ -204,13 +214,19 @@ pub fn simulacion_1000_pasos(
 
         if sEstadoActual.as_str() == ESTADO_META {
             uiLlegoMetaCount += 1;
-            sEstadoActual = vec_sEstadosValidos.choose(&mut rngThreadRng).unwrap().clone();
+            sEstadoActual = vec_sEstadosValidos
+                .choose(&mut rngThreadRng)
+                .unwrap()
+                .clone();
             continue;
         }
 
         if ESTADOS_PELIGRO.contains(&sEstadoActual.as_str()) {
             uiCayoPeligroCount += 1;
-            sEstadoActual = vec_sEstadosValidos.choose(&mut rngThreadRng).unwrap().clone();
+            sEstadoActual = vec_sEstadosValidos
+                .choose(&mut rngThreadRng)
+                .unwrap()
+                .clone();
             continue;
         }
 

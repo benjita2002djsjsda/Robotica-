@@ -7,7 +7,6 @@
 /// 4. A 1000-step simulation to gather performance statistics.
 /// 5. Generation and saving of transition matrices and result plots.
 // src/main.rs
-
 mod config;
 mod mdp_model;
 mod plot_utils;
@@ -39,7 +38,10 @@ async fn main() {
 
     // Main loop: Iterate through each lambda factor
     for f64LandaRef in &vec_f64FactoresLanda {
-        println!("\n=== Ejecutando Value Iteration para λ = {:.2} ===", *f64LandaRef);
+        println!(
+            "\n=== Ejecutando Value Iteration para λ = {:.2} ===",
+            *f64LandaRef
+        );
 
         // Perform Value Iteration to get optimal values and policy
         // value_iteration(f64Lambda, f64Epsilon, opt_hm_s_hm_s_f64ProbTransExt)
@@ -51,14 +53,20 @@ async fn main() {
         let mut vec_sKeysValores: Vec<_> = hm_s_f64ValoresEstados.keys().collect();
         vec_sKeysValores.sort();
         for sKeyEstadoRef in vec_sKeysValores {
-            println!("{}: {:.2}", sKeyEstadoRef, hm_s_f64ValoresEstados[sKeyEstadoRef]);
+            println!(
+                "{}: {:.2}",
+                sKeyEstadoRef, hm_s_f64ValoresEstados[sKeyEstadoRef]
+            );
         }
 
         println!("\nPolítica óptima:");
         let mut vec_sKeysPolitica: Vec<_> = hm_s_sPoliticaOptima.keys().collect();
         vec_sKeysPolitica.sort();
         for sKeyEstadoStrRef in vec_sKeysPolitica {
-            println!("{}: {:?}", sKeyEstadoStrRef, hm_s_sPoliticaOptima[sKeyEstadoStrRef]);
+            println!(
+                "{}: {:?}",
+                sKeyEstadoStrRef, hm_s_sPoliticaOptima[sKeyEstadoStrRef]
+            );
         }
 
         // Run visual simulation (Macroquad)
@@ -69,7 +77,8 @@ async fn main() {
         // Evaluate robustness of the current policy
         // evaluar_robustez(ref_hm_s_sPoliticaBase, f64Lambda)
         let vec_tpl_s_uiResultadosRobustez = evaluar_robustez(&hm_s_sPoliticaOptima, *f64LandaRef);
-        vec_tpl_f64_vec_tpl_s_uiGraficosRobustez.push((*f64LandaRef, vec_tpl_s_uiResultadosRobustez));
+        vec_tpl_f64_vec_tpl_s_uiGraficosRobustez
+            .push((*f64LandaRef, vec_tpl_s_uiResultadosRobustez));
 
         // Run 1000-step simulation for performance statistics
         // simulacion_1000_pasos(ref_hm_s_sPolitica, uiMaxPasos)
@@ -79,7 +88,10 @@ async fn main() {
 
     // Generate and save final plots
     // graficar_resultados_finales(ref_vec_tpl_f64_vec_tpl_s_uiGraficosRobustez, ref_vec_tpl_f64_ui_uiResumen1000Pasos)
-    if let Err(errBoxedError) = graficar_resultados_finales(&vec_tpl_f64_vec_tpl_s_uiGraficosRobustez, &vec_tpl_f64_ui_uiResumen1000Pasos) {
+    if let Err(errBoxedError) = graficar_resultados_finales(
+        &vec_tpl_f64_vec_tpl_s_uiGraficosRobustez,
+        &vec_tpl_f64_ui_uiResumen1000Pasos,
+    ) {
         eprintln!("Error al graficar resultados: {:?}", errBoxedError);
     }
 
