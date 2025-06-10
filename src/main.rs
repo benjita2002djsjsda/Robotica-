@@ -41,11 +41,31 @@ async fn main() {
 
         // Mostrar política óptima
         println!("\nPolítica óptima para λ={}:", landa);
-        let mut estados: Vec<_> = politica.keys().collect();
-        estados.sort();
-        for estado in estados {
-            println!("{}: {}", estado, politica[estado]);
+        println!("\nMapa de política óptima:");
+        println!("-------------------------");
+        for fila in config::MAPA_ESTADOS.iter() {
+            for estado in fila {
+                let simbolo = if config::OBSTACULOS.contains(estado) {
+                    "⬛"
+                } else if *estado == config::ESTADO_META {
+                    "🎯"
+                } else if config::ESTADOS_PELIGRO.contains(estado) {
+                    "⚠️"
+                } else {
+                    match politica.get(*estado).map(String::as_str) {
+                        Some("N") => "↑",
+                        Some("S") => "↓",
+                        Some("E") => "→",
+                        Some("O") => "←",
+                        _ => " ",
+                    }
+                };
+                print!("{} ", simbolo);
+            }
+            println!();
         }
+        println!("-------------------------");
+        println!("Leyenda: ⬛ Obstáculo | 🎯 Meta | ⚠️ Peligro | ↑↓←→ Dirección óptima");
 
         // Ejecutar simulación estricta
         println!("\n→ Iniciando simulación visual (siguiendo política óptima)...");
