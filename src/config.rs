@@ -3,7 +3,8 @@ use std::collections::HashMap;
 
 pub const FILAS_MAPA: usize = 6;
 pub const COLUMNAS_MAPA: usize = 8;
-
+pub const INTERVALO_MOVIMIENTO: f64 = 0.5; // Intervalo de tiempo entre movimientos en segundos
+pub const UMBRAL_CONVERGENCIA: f64 = 0.001; // Umbral de convergencia para Value Iteration
 pub const ESTADO_META: &str = "M";
 
 pub const ESTADOS_PELIGRO: [&str; 4] = ["P1", "P2", "P3", "P4"];

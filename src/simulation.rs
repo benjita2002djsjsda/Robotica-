@@ -1,11 +1,12 @@
 // src/simulation.rs
 use crate::config::{
-    acciones, obtener_recompensas, ESTADOS_PELIGRO, ESTADO_META, MAPA_ESTADOS, OBSTACULOS,
+    obtener_recompensas, ESTADOS_PELIGRO, ESTADO_META, INTERVALO_MOVIMIENTO, MAPA_ESTADOS,
+    OBSTACULOS,
 };
 use crate::mdp_model::{obtener_estado, obtener_posicion};
 use ::rand::seq::SliceRandom;
 use ::rand::thread_rng;
-use ::rand::Rng;
+
 use macroquad::prelude::*;
 use std::collections::HashMap;
 
@@ -18,14 +19,14 @@ const COLOR_ROBOT: Color = BLUE;
 const COLOR_OBSTACULO: Color = DARKGRAY;
 
 pub async fn ejecutar_simulacion(
-    politica: &mut HashMap<String, String>,
+    politica: &HashMap<String, String>,
     pasos: usize,
     recompensas_map: &mut HashMap<&'static str, f64>,
+    landa: f64,
 ) {
     let mut rng = ::rand::thread_rng();
-    let epsilon = 0.8;
+    let mut historial_estados = Vec::new();
 
-    // Inicializar el estado actual desde un estado aleatorio válido
     let estados_validos: Vec<String> = MAPA_ESTADOS
         .iter()
         .flatten()
@@ -34,11 +35,15 @@ pub async fn ejecutar_simulacion(
         .collect();
 
     let mut estado_actual = estados_validos.choose(&mut rng).unwrap().clone();
+    historial_estados.push(estado_actual.clone());
     let mut paso_actual = 0;
+    let mut recompensa_total = 0.0;
+    recompensa_total += obtener_recompensas()
+        .get(estado_actual.as_str())
+        .unwrap_or(&0.0);
 
-    // Control de velocidad: tiempo entre movimientos
     let mut ultimo_movimiento = get_time();
-    let intervalo_movimiento = 0.5; // Ajusta este valor para cambiar la velocidad (en segundos)
+    let intervalo_movimiento = INTERVALO_MOVIMIENTO;
 
     loop {
         clear_background(WHITE);
@@ -68,11 +73,31 @@ pub async fn ejecutar_simulacion(
                     TAMANO_CELDA - 2.0 * MARGEN,
                     color,
                 );
+                // Dibuja la letra del estado (por ejemplo, "S1", "S2", etc.) en el centro
+                draw_text(
+                    estado,
+                    x + TAMANO_CELDA / 2.0 - 12.0,
+                    y + TAMANO_CELDA / 2.0 + 8.0,
+                    24.0,
+                    BLACK,
+                );
+
+                // Si es peligro, dibuja una "P" en la esquina superior derecha
+                if ESTADOS_PELIGRO.contains(estado) {
+                    draw_text("P", x + TAMANO_CELDA - 22.0, y + 22.0, 24.0, RED);
+                }
             }
         }
 
         draw_text(
-            &format!("Paso: {} - Estado: {}", paso_actual, estado_actual),
+            &format!(
+                "λ={:.2} | Paso: {} | Estado: {} | Acción: {} | Recompensa: {:.2}",
+                landa,
+                paso_actual,
+                estado_actual,
+                politica.get(&estado_actual).unwrap_or(&"N/A".to_string()),
+                recompensa_total
+            ),
             10.0,
             20.0,
             20.0,
@@ -81,31 +106,28 @@ pub async fn ejecutar_simulacion(
 
         next_frame().await;
 
-        // Control de velocidad: mover solo si ha pasado el tiempo suficiente
         let ahora = get_time();
         if ahora - ultimo_movimiento < intervalo_movimiento {
-            continue; // Esperar hasta que pase el intervalo
+            continue;
         }
         ultimo_movimiento = ahora;
 
         if paso_actual >= pasos || estado_actual == ESTADO_META {
+            println!("Camino seguido: {:?}", historial_estados);
             break;
         }
 
-        let accion = if rng.gen::<f64>() < epsilon {
-            // Explorar: elegir una acción aleatoria
-            let acciones_validas = acciones();
-            acciones_validas.choose(&mut rng).unwrap().to_string()
-        } else {
-            // Seguir la política óptima
-            politica.get(&estado_actual).unwrap().clone()
-        };
+        // SIGUE ESTRICTAMENTE LA POLÍTICA ÓPTIMA (sin exploración aleatoria)
+        let accion = politica.get(&estado_actual).unwrap().clone();
 
-        if let Some((fila_act, col_act)) = obtener_posicion(&estado_actual) {
+        if let Ok((fila_act, col_act)) = obtener_posicion(&estado_actual) {
             let (nueva_fila, nueva_col) = mover(fila_act, col_act, &accion);
             if let Some(nuevo_estado) = obtener_estado(nueva_fila as isize, nueva_col as isize) {
                 if !OBSTACULOS.contains(&nuevo_estado) {
+                    // Suma la recompensa SOLO al entrar al nuevo estado
+                    recompensa_total += obtener_recompensas().get(nuevo_estado).unwrap_or(&0.0);
                     estado_actual = nuevo_estado.to_string();
+                    historial_estados.push(estado_actual.clone());
                 }
             }
         }
@@ -114,7 +136,11 @@ pub async fn ejecutar_simulacion(
     }
 
     if estado_actual == ESTADO_META {
-        *recompensas_map.get_mut(ESTADO_META).unwrap() += 1.0;
+        *recompensas_map.entry(ESTADO_META).or_insert(0.0) += 1.0;
+        println!(
+            "¡Meta alcanzada en {} pasos! Recompensa acumulada: {:.2}",
+            paso_actual, recompensa_total
+        );
     }
 }
 
@@ -147,10 +173,6 @@ pub fn simulacion_1000_pasos(
     let mut recompensa_total = 0.0;
 
     for _ in 0..max_pasos {
-        recompensa_total += obtener_recompensas()
-            .get(estado_actual.as_str())
-            .unwrap_or(&0.0);
-
         if estado_actual == ESTADO_META {
             llego_meta += 1;
             estado_actual = estados_validos.choose(&mut rng).unwrap().clone();
@@ -163,19 +185,26 @@ pub fn simulacion_1000_pasos(
             continue;
         }
 
+        // Solo suma recompensa al entrar al nuevo estado
         if let Some(accion) = politica.get(&estado_actual) {
-            if let Some((fila, col)) = obtener_posicion(&estado_actual) {
+            if let Ok((fila, col)) = obtener_posicion(&estado_actual) {
                 let (nueva_fila, nueva_col) = mover(fila, col, accion);
-                estado_actual = obtener_estado(nueva_fila as isize, nueva_col as isize)
+                let nuevo_estado = obtener_estado(nueva_fila as isize, nueva_col as isize)
                     .map(|s| s.to_string())
                     .unwrap_or_else(|| estado_actual.clone());
+                recompensa_total += obtener_recompensas()
+                    .get(nuevo_estado.as_str())
+                    .unwrap_or(&0.0);
+                estado_actual = nuevo_estado;
             }
         } else {
             break;
         }
     }
-    println!("Llegadas a meta: {}", llego_meta);
-    println!("Caídas en peligro: {}", cayo_peligro);
-    println!("Recompensa total: {:.2}", recompensa_total);
+    println!("\nResumen final después de {} pasos:", max_pasos);
+    println!("- Llegadas a meta: {}", llego_meta);
+    println!("- Caídas en peligro: {}", cayo_peligro);
+    println!("- Recompensa total acumulada: {:.2}", recompensa_total);
+
     (llego_meta, cayo_peligro)
 }

@@ -24,7 +24,7 @@ pub fn construir_matriz_transicion(accion: &str) -> Array2<f32> {
     let mut matriz = Array2::<f32>::zeros((total, total));
 
     for estado_origen in &estados {
-        if let Some((fila, col)) = obtener_posicion(estado_origen) {
+        if let Ok((fila, col)) = obtener_posicion(estado_origen) {
             if let Some(transiciones) = modelo_transicion.get(accion) {
                 for (resultado, prob) in transiciones {
                     let (nueva_fila, nueva_col) = mover(fila, col, resultado);

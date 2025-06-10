@@ -55,11 +55,16 @@ pub fn evaluar_robustez(
     let mut resultados = Vec::new();
 
     for (izq, centro, der) in MODELOS_RUIDO.iter() {
-        let etiqueta = format!("{}%", (*centro * 100.0) as usize);
+        let porcentaje_exito = (*centro * 100.0) as usize;
+        let etiqueta = format!(
+            "{}% éxito ({}% L/R)",
+            porcentaje_exito,
+            (*izq * 100.0) as usize
+        );
         let modelo_ruido = construir_modelo_ruido(*izq, *centro, *der);
 
-        // ε arbitrario
-        let (_, politica_adaptada) = value_iteration(landa, 0.01, Some(&modelo_ruido));
+        // Usar umbral más estricto
+        let (_, politica_adaptada) = value_iteration(landa, Some(1e-6), Some(&modelo_ruido));
 
         let cambios = politica_base
             .iter()
