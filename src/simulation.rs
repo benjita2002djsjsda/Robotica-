@@ -6,7 +6,7 @@ use crate::config::{
 use crate::mdp_model::{obtener_estado, obtener_posicion};
 use ::rand::seq::SliceRandom;
 use ::rand::thread_rng;
-
+use ::rand::Rng;
 use macroquad::prelude::*;
 use std::collections::HashMap;
 
@@ -153,7 +153,8 @@ fn mover(fila: usize, col: usize, accion: &str) -> (usize, usize) {
 pub fn simulacion_1000_pasos(
     politica: &HashMap<String, String>,
     max_pasos: usize,
-) -> (usize, usize) {
+    prob_exito: f64,
+) -> (usize, usize, f64) {
     let estados_validos: Vec<String> = MAPA_ESTADOS
         .iter()
         .flatten()
@@ -181,13 +182,24 @@ pub fn simulacion_1000_pasos(
             continue;
         }
 
-        // Solo suma recompensa al entrar al nuevo estado
         if let Some(accion) = politica.get(&estado_actual) {
             if let Ok((fila, col)) = obtener_posicion(&estado_actual) {
-                let (nueva_fila, nueva_col) = mover(fila, col, accion);
+                // Determinar si el movimiento es exitoso según la probabilidad
+                let movimiento_exitoso = rng.gen_bool(prob_exito);
+
+                let (nueva_fila, nueva_col) = if movimiento_exitoso {
+                    mover(fila, col, accion)
+                } else {
+                    // Movimiento fallido: elige una dirección aleatoria
+                    let direcciones = ["N", "S", "E", "O"];
+                    let direccion_fallida = direcciones.choose(&mut rng).unwrap();
+                    mover(fila, col, direccion_fallida)
+                };
+
                 let nuevo_estado = obtener_estado(nueva_fila as isize, nueva_col as isize)
                     .map(|s| s.to_string())
                     .unwrap_or_else(|| estado_actual.clone());
+
                 recompensa_total += obtener_recompensas()
                     .get(nuevo_estado.as_str())
                     .unwrap_or(&0.0);
@@ -197,10 +209,6 @@ pub fn simulacion_1000_pasos(
             break;
         }
     }
-    println!("\nResumen final después de {} pasos:", max_pasos);
-    println!("- Llegadas a meta: {}", llego_meta);
-    println!("- Caídas en peligro: {}", cayo_peligro);
-    println!("- Recompensa total acumulada: {:.2}", recompensa_total);
 
-    (llego_meta, cayo_peligro)
+    (llego_meta, cayo_peligro, recompensa_total)
 }

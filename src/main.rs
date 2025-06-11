@@ -24,14 +24,34 @@ async fn main() {
     let mut graficos_robustez = vec![];
     let mut resumen_1000_pasos = vec![];
 
+    let mut resumen_recompensas = vec![]; // Añade esta línea
     let mut recompensas_map = obtener_recompensas();
 
     for &landa in &factores_landa {
         // --- Todo esto debe estar dentro del ciclo de landa ---
         println!("\n=== Ejecutando Value Iteration para λ = {:.2} ===", landa);
-
+        println!("Resultados de simulaciones de 1000 pasos:");
+        println!("----------------------------------------");
         let (valores, politica) = value_iteration(landa, Some(0.001), None);
+        for &prob in &probabilidades_exito {
+            let (metas, peligros, recompensa) = simulacion_1000_pasos(&politica, 1000, prob);
+            // Guarda en ambos vectores
 
+            // Guardamos en ambos vectores manteniendo consistencia
+            let dato = (landa, prob, recompensa);
+            resumen_1000_pasos.push(dato);
+            resumen_recompensas.push(dato);
+
+            println!(
+                "λ={:.2} - Prob éxito {:.0}% Recompensa: {:.2} (Meta: {}, Peligros: {})",
+                landa,
+                prob * 100.0,
+                recompensa,
+                metas,
+                peligros
+            );
+            resumen_1000_pasos.push((landa, prob, recompensa));
+        }
         println!("\nValor de los estados:");
         let mut keys: Vec<_> = valores.keys().collect();
         keys.sort();
@@ -74,14 +94,6 @@ async fn main() {
         // Evaluar robustez
         let resultados = evaluar_robustez(&politica, landa);
         graficos_robustez.push((landa, resultados));
-
-        // Simulación de 1000 pasos
-        let (metas, pozos) = simulacion_1000_pasos(&politica, 1000);
-        resumen_1000_pasos.push((landa, metas, pozos));
-        println!(
-            "Resultados 1000 pasos - λ={:.2}: {} metas, {} peligros",
-            landa, metas, pozos
-        );
     }
 
     // Guardar CSV de simulación real
@@ -93,13 +105,22 @@ async fn main() {
         "resultados_simulacion.csv",
     );
 
+    // Guardar CSV - versión optimizada
+    experimentos::guardar_recompensas_csv(&resumen_recompensas, "resultados_simulacion_1000.csv")
+        .expect("Error al guardar CSV");
+
     // Leer CSV y graficar usando esos datos reales
     let resumen_recompensas = leer_recompensas_csv("resultados_simulacion.csv");
-    if let Err(e) = graficar_resultados_finales(
-        &graficos_robustez,
-        &resumen_1000_pasos,
-        &resumen_recompensas,
-    ) {
+
+    // Leer CSV y graficar usando esos datos reales
+    let resumen_recompensas_1000 = leer_recompensas_csv("resultados_simulacion_1000.csv");
+
+    // Graficar los resultados en barras
+    if let Err(e) = plot_utils::graficar_recompensas_barras(&resumen_recompensas_1000) {
+        eprintln!("Error al graficar barras: {:?}", e);
+    }
+
+    if let Err(e) = graficar_resultados_finales(&graficos_robustez, &resumen_recompensas) {
         eprintln!("Error al graficar resultados: {:?}", e);
     }
 

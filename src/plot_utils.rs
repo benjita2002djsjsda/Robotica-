@@ -24,7 +24,6 @@ pub fn leer_recompensas_csv(path: &str) -> Vec<(f64, f64, f64)> {
 
 pub fn graficar_resultados_finales(
     graficos_robustez: &Vec<(f64, Vec<(String, usize)>)>,
-    resumen_1000_pasos: &Vec<(f64, usize, usize)>,
     resumen_recompensas: &Vec<(f64, f64, f64)>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // === Primer gráfico: robustez ===
@@ -66,64 +65,6 @@ pub fn graficar_resultados_finales(
             )
         }))?;
     }
-
-    // === Segundo gráfico: desempeño de políticas ===
-    let root2 = BitMapBackend::new("simulacion_1000pasos.png", (800, 500)).into_drawing_area();
-    root2.fill(&WHITE)?;
-
-    let (mut lambdas, mut metas, mut peligros) = (Vec::new(), Vec::new(), Vec::new());
-    for (l, m, p) in resumen_1000_pasos.iter() {
-        lambdas.push(*l);
-        metas.push(*m);
-        peligros.push(*p);
-    }
-
-    let cantidad_max = metas.iter().chain(&peligros).copied().max().unwrap_or(0) as i32 + 10;
-
-    let mut chart = ChartBuilder::on(&root2)
-        .caption("Desempeño de Políticas (1000 pasos)", ("sans-serif", 20))
-        .margin(20)
-        .x_label_area_size(40)
-        .y_label_area_size(40)
-        .build_cartesian_2d(0..lambdas.len() as i32, 0..cantidad_max)?;
-
-    chart
-        .configure_mesh()
-        .x_labels(lambdas.len())
-        .x_label_formatter(&|idx| {
-            let i = *idx as usize;
-            if i < lambdas.len() {
-                format!("λ = {:.2}", lambdas[i])
-            } else {
-                "".to_string()
-            }
-        })
-        .draw()?;
-
-    let ancho_barra = 1;
-
-    chart
-        .draw_series(metas.iter().enumerate().map(|(i, val)| {
-            let x0 = i as i32;
-            let x1 = i as i32 + ancho_barra;
-            Rectangle::new([(x0, 0), (x1, *val as i32)], GREEN.mix(0.5).filled())
-        }))?
-        .label("Llegadas a Meta")
-        .legend(|(x, y)| Rectangle::new([(x, y - 5), (x + 10, y + 5)], GREEN.filled()));
-
-    chart
-        .draw_series(peligros.iter().enumerate().map(|(i, val)| {
-            let x0 = i as i32;
-            let x1 = i as i32 + ancho_barra;
-            Rectangle::new([(x0, 0), (x1, *val as i32)], RED.mix(0.5).filled())
-        }))?
-        .label("En peligro")
-        .legend(|(x, y)| Rectangle::new([(x, y - 5), (x + 10, y + 5)], RED.filled()));
-
-    chart
-        .configure_series_labels()
-        .background_style(&WHITE.mix(0.8))
-        .draw()?;
 
     // === Tercer gráfico: recompensa media según lambda y éxito ===
     let root3 = BitMapBackend::new("recompensa_media.png", (800, 500)).into_drawing_area();
@@ -202,9 +143,102 @@ pub fn graficar_resultados_finales(
         ("sans-serif", 15),
     ))?;
 
+    println!("✅ Imagen 'recompensa_barras.png' guardada correctamente.");
+
     println!("✅ Imagen 'robustez_politicas.png' guardada correctamente.");
     println!("✅ Imagen 'simulacion_1000pasos.png' guardada correctamente.");
     println!("✅ Imagen 'recompensa_media.png' guardada correctamente.");
 
+    Ok(())
+}
+// Agrega esto en plot_utils.rs
+
+pub fn graficar_recompensas_barras(
+    datos: &[(f64, f64, f64)],
+) -> Result<(), Box<dyn std::error::Error>> {
+    // Agrupar los datos por lambda usando una precisión fija para evitar problemas de punto flotante
+    let mut grupos: Vec<(f64, Vec<(f64, f64)>)> = Vec::new();
+
+    // Primero recolectamos todos los lambdas únicos
+    let mut lambdas: Vec<f64> = datos.iter().map(|d| d.0).collect();
+    lambdas.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    lambdas.dedup();
+
+    // Para cada lambda, recolectamos sus datos
+    for &landa in &lambdas {
+        let grupo: Vec<(f64, f64)> = datos
+            .iter()
+            .filter(|(l, _, _)| (*l - landa).abs() < f64::EPSILON)
+            .map(|(_, exito, recompensa)| (*exito, *recompensa))
+            .collect();
+        grupos.push((landa, grupo));
+    }
+
+    // Crear el gráfico
+    let root = BitMapBackend::new("recompensa_barras.png", (1200, 800)).into_drawing_area();
+    root.fill(&WHITE)?;
+
+    // Dividir el área en subgráficos para cada lambda
+    let areas = root.split_evenly((2, 2)); // 4 gráficos (2x2)
+
+    for (i, (landa, datos_grupo)) in grupos.iter().enumerate() {
+        if i >= areas.len() {
+            break;
+        }
+
+        let area = &areas[i];
+
+        // Ordenar por probabilidad de éxito
+        let mut datos_ordenados = datos_grupo.clone();
+        datos_ordenados.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+
+        let exitos: Vec<f64> = datos_ordenados.iter().map(|d| d.0).collect();
+        let recompensas: Vec<f64> = datos_ordenados.iter().map(|d| d.1).collect();
+
+        let max_recompensa = recompensas.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+        let min_recompensa = recompensas.iter().fold(f64::INFINITY, |a, &b| a.min(b));
+
+        // Cambia el build_cartesian_2d para usar coordenadas continuas en lugar de segmentadas
+        let mut chart = ChartBuilder::on(area)
+            .caption(
+                format!("Recompensa vs Prob. Éxito (λ = {:.2})", landa),
+                ("sans-serif", 20),
+            )
+            .margin(10)
+            .x_label_area_size(40)
+            .y_label_area_size(40)
+            .build_cartesian_2d(
+                exitos[0]..exitos[exitos.len() - 1], // Coordenadas continuas
+                min_recompensa..max_recompensa,
+            )?;
+
+        chart
+            .configure_mesh()
+            .x_desc("Probabilidad de éxito")
+            .y_desc("Recompensa promedio")
+            .x_labels(5)
+            .y_labels(5)
+            .draw()?;
+
+        // Dibujar barras usando coordenadas continuas
+        chart.draw_series(exitos.iter().zip(recompensas.iter()).map(|(x, y)| {
+            let width = 0.08; // Ancho de las barras
+            Rectangle::new(
+                [(*x - width / 2.0, 0.0), (*x + width / 2.0, *y)],
+                BLUE.filled(),
+            )
+        }))?;
+
+        // Etiquetas de valores - ahora funciona con coordenadas continuas
+        chart.draw_series(exitos.iter().zip(recompensas.iter()).map(|(x, y)| {
+            Text::new(
+                format!("{:.1}", y),
+                (*x, *y + (max_recompensa - min_recompensa) * 0.02),
+                ("sans-serif", 12).into_font().color(&RED),
+            )
+        }))?;
+    }
+
+    println!("✅ Gráficos de barras guardados en 'recompensa_barras.png'");
     Ok(())
 }

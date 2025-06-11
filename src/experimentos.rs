@@ -80,3 +80,11 @@ pub fn simular_y_guardar_csv(
     }
     println!("✅ Resultados guardados en '{}'", nombre_archivo);
 }
+pub fn guardar_recompensas_csv(datos: &[(f64, f64, f64)], path: &str) -> std::io::Result<()> {
+    let mut file = File::create(path)?;
+    writeln!(file, "lambda,prob_exito,recompensa")?;
+    for (landa, exito, recompensa) in datos {
+        writeln!(file, "{},{},{}", landa, exito, recompensa)?;
+    }
+    Ok(())
+}

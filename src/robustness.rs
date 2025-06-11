@@ -74,7 +74,6 @@ pub fn evaluar_robustez(
             })
             .count();
 
-        println!("Ruido {}: {} cambios", etiqueta, cambios);
         resultados.push((etiqueta, cambios));
     }
 
