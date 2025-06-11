@@ -2,15 +2,18 @@ use plotters::prelude::*;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
+/// Módulo de utilidades de visualización - Generación de gráficos y análisis visual
+
 pub fn leer_recompensas_csv(path: &str) -> Vec<(f64, f64, f64)> {
     let file = File::open(path).expect("No se pudo abrir el archivo CSV");
     let reader = BufReader::new(file);
     let mut datos = Vec::new();
+
     for (i, line) in reader.lines().enumerate() {
         let line = line.expect("Error leyendo línea");
         if i == 0 {
-            continue;
-        } // Saltar encabezado
+            continue; // Saltar línea de encabezados
+        }
         let campos: Vec<&str> = line.split(',').collect();
         if campos.len() >= 3 {
             let landa = campos[0].parse().unwrap_or(0.0);
@@ -22,14 +25,20 @@ pub fn leer_recompensas_csv(path: &str) -> Vec<(f64, f64, f64)> {
     datos
 }
 
+/// Genera un gráfico de dispersión (scatter plot) con mapa de calor
+///
+/// Crea una visualización donde cada punto representa una combinación de parámetros
+/// (lambda, probabilidad_éxito) y el color del punto indica la recompensa obtenida.
+/// Útil para identificar regiones óptimas en el espacio de parámetros.
+
 pub fn graficar_resultados_finales(
     resumen_recompensas: &Vec<(f64, f64, f64)>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    // === Tercer gráfico: recompensa media según lambda y éxito ===
+    // Configuración del lienzo para el gráfico
     let root3 = BitMapBackend::new("recompensa_media.png", (800, 500)).into_drawing_area();
     root3.fill(&WHITE)?;
 
-    // Extraer valores únicos de lambda y prob_exito
+    // Extracción y ordenamiento de valores únicos para los ejes
     let mut lambdas: Vec<f64> = resumen_recompensas.iter().map(|r| r.0).collect();
     lambdas.sort_by(|a, b| a.partial_cmp(b).unwrap());
     lambdas.dedup();
@@ -37,11 +46,13 @@ pub fn graficar_resultados_finales(
     exitos.sort_by(|a, b| a.partial_cmp(b).unwrap());
     exitos.dedup();
 
+    // Determinación de rangos para los ejes
     let min_lambda = *lambdas.first().unwrap();
     let max_lambda = *lambdas.last().unwrap();
     let min_exito = *exitos.first().unwrap();
     let max_exito = *exitos.last().unwrap();
 
+    // Cálculo del rango de recompensas para el mapeo de colores
     let min_recompensa = resumen_recompensas
         .iter()
         .map(|r| r.2)
@@ -51,6 +62,7 @@ pub fn graficar_resultados_finales(
         .map(|r| r.2)
         .fold(f64::NEG_INFINITY, f64::max);
 
+    // Construcción del sistema de coordenadas del gráfico
     let mut chart = ChartBuilder::on(&root3)
         .caption("Recompensa media según λ y éxito", ("sans-serif", 20))
         .margin(20)
@@ -64,14 +76,15 @@ pub fn graficar_resultados_finales(
         .y_desc("Probabilidad de éxito")
         .draw()?;
 
-    // Dibuja los puntos como un scatter plot coloreado por recompensa media
+    // Renderizado de puntos con colores basados en recompensa
     chart.draw_series(
         resumen_recompensas
             .iter()
             .map(|(landa, exito, recompensa)| {
+                // Mapeo de recompensa a color: verde (bajo) -> azul (alto)
                 let color = HSLColor(
                     0.33 + 0.33 * (recompensa - min_recompensa)
-                        / (max_recompensa - min_recompensa + 1e-8), // verde a azul
+                        / (max_recompensa - min_recompensa + 1e-8),
                     0.7,
                     0.5,
                 );
@@ -79,18 +92,19 @@ pub fn graficar_resultados_finales(
             }),
     )?;
 
-    // Opcional: agregar leyenda de color
+    // Generación de leyenda de colores (barra de gradiente)
     let legend_area = root3.titled("Leyenda: Recompensa media", ("sans-serif", 15))?;
     let grad_steps = 100;
     for i in 0..grad_steps {
         let frac = i as f64 / (grad_steps - 1) as f64;
-
         let color = HSLColor(0.33 + 0.33 * frac, 0.7, 0.5);
         legend_area.draw(&Rectangle::new(
             [(700, 50 + i * 3), (750, 50 + (i + 1) * 3)],
             color.filled(),
         ))?;
     }
+
+    // Etiquetas de valores máximo y mínimo en la leyenda
     legend_area.draw(&Text::new(
         format!("{:.2}", max_recompensa),
         (755, 50),
@@ -103,27 +117,31 @@ pub fn graficar_resultados_finales(
     ))?;
 
     println!("✅ Imagen 'recompensa_barras.png' guardada correctamente.");
-
     println!("✅ Imagen 'robustez_politicas.png' guardada correctamente.");
     println!("✅ Imagen 'simulacion_1000pasos.png' guardada correctamente.");
     println!("✅ Imagen 'recompensa_media.png' guardada correctamente.");
 
     Ok(())
 }
-// Agrega esto en plot_utils.rs
+
+/// Genera gráficos de barras agrupados por factor de descuento (lambda)
+///
+/// Crea un panel con 4 subgráficos (2x2), cada uno mostrando cómo varía la
+/// recompensa promedio según la probabilidad de éxito para un valor fijo de lambda.
+/// Útil para comparar el comportamiento bajo diferentes niveles de descuento.
 
 pub fn graficar_recompensas_barras(
     datos: &[(f64, f64, f64)],
 ) -> Result<(), Box<dyn std::error::Error>> {
-    // Agrupar los datos por lambda usando una precisión fija para evitar problemas de punto flotante
+    // Agrupación de datos por lambda para análisis separado
     let mut grupos: Vec<(f64, Vec<(f64, f64)>)> = Vec::new();
 
-    // Primero recolectamos todos los lambdas únicos
+    // Extracción de valores únicos de lambda
     let mut lambdas: Vec<f64> = datos.iter().map(|d| d.0).collect();
     lambdas.sort_by(|a, b| a.partial_cmp(b).unwrap());
     lambdas.dedup();
 
-    // Para cada lambda, recolectamos sus datos
+    // Agrupación de datos por cada valor de lambda
     for &landa in &lambdas {
         let grupo: Vec<(f64, f64)> = datos
             .iter()
@@ -133,31 +151,31 @@ pub fn graficar_recompensas_barras(
         grupos.push((landa, grupo));
     }
 
-    // Crear el gráfico
+    // Configuración del lienzo principal dividido en subgráficos
     let root = BitMapBackend::new("recompensa_barras.png", (1200, 800)).into_drawing_area();
     root.fill(&WHITE)?;
+    let areas = root.split_evenly((2, 2)); // Panel 2x2 para 4 valores de lambda
 
-    // Dividir el área en subgráficos para cada lambda
-    let areas = root.split_evenly((2, 2)); // 4 gráficos (2x2)
-
+    // Generación de un subgráfico para cada valor de lambda
     for (i, (landa, datos_grupo)) in grupos.iter().enumerate() {
         if i >= areas.len() {
-            break;
+            break; // Solo procesar los primeros 4 valores de lambda
         }
 
         let area = &areas[i];
 
-        // Ordenar por probabilidad de éxito
+        // Ordenamiento de datos por probabilidad de éxito
         let mut datos_ordenados = datos_grupo.clone();
         datos_ordenados.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
 
         let exitos: Vec<f64> = datos_ordenados.iter().map(|d| d.0).collect();
         let recompensas: Vec<f64> = datos_ordenados.iter().map(|d| d.1).collect();
 
+        // Cálculo de rangos para el eje Y
         let max_recompensa = recompensas.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
         let min_recompensa = recompensas.iter().fold(f64::INFINITY, |a, &b| a.min(b));
 
-        // Cambia el build_cartesian_2d para usar coordenadas continuas en lugar de segmentadas
+        // Construcción del sistema de coordenadas para este subgráfico
         let mut chart = ChartBuilder::on(area)
             .caption(
                 format!("Recompensa vs Prob. Éxito (λ = {:.2})", landa),
@@ -167,7 +185,7 @@ pub fn graficar_recompensas_barras(
             .x_label_area_size(40)
             .y_label_area_size(40)
             .build_cartesian_2d(
-                exitos[0]..exitos[exitos.len() - 1], // Coordenadas continuas
+                exitos[0]..exitos[exitos.len() - 1],
                 min_recompensa..max_recompensa,
             )?;
 
@@ -179,7 +197,7 @@ pub fn graficar_recompensas_barras(
             .y_labels(5)
             .draw()?;
 
-        // Dibujar barras usando coordenadas continuas
+        // Dibujado de barras verticales
         chart.draw_series(exitos.iter().zip(recompensas.iter()).map(|(x, y)| {
             let width = 0.08; // Ancho de las barras
             Rectangle::new(
@@ -188,7 +206,7 @@ pub fn graficar_recompensas_barras(
             )
         }))?;
 
-        // Etiquetas de valores - ahora funciona con coordenadas continuas
+        // Etiquetas de valores sobre cada barra
         chart.draw_series(exitos.iter().zip(recompensas.iter()).map(|(x, y)| {
             Text::new(
                 format!("{:.1}", y),
