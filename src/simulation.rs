@@ -91,12 +91,8 @@ pub async fn ejecutar_simulacion(
 
         draw_text(
             &format!(
-                "λ={:.2} | Paso: {} | Estado: {} | Acción: {} | Recompensa: {:.2}",
-                landa,
-                paso_actual,
-                estado_actual,
-                politica.get(&estado_actual).unwrap_or(&"N/A".to_string()),
-                recompensa_total
+                "lambda={:.2} | Paso: {} | Estado: {} | Recompensa: {:.2}",
+                landa, paso_actual, estado_actual, recompensa_total
             ),
             10.0,
             20.0,
