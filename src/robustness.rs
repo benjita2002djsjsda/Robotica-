@@ -1,12 +1,11 @@
-use crate::mdp_model::value_iteration;
 use std::collections::HashMap;
 
-// Modelos de ruido alternativos
-const MODELOS_RUIDO: &[(f64, f64, f64)] = &[
-    (0.1, 0.8, 0.1),
-    (0.05, 0.9, 0.05),
-    (0.15, 0.7, 0.15),
-    (0.25, 0.5, 0.25),
+// Modelos de robustez específicos para evaluación
+pub const MODELOS_ROBUSTEZ: &[(f64, f64, f64)] = &[
+    (0.1, 0.8, 0.1),   // (10%, 80%, 10%)
+    (0.05, 0.9, 0.05), // (5%, 90%, 5%)
+    (0.15, 0.7, 0.15), // (15%, 70%, 15%)
+    (0.25, 0.5, 0.25), // (25%, 50%, 25%)
 ];
 
 pub fn construir_modelo_ruido(
@@ -46,36 +45,4 @@ pub fn construir_modelo_ruido(
     }
 
     modelo
-}
-
-pub fn evaluar_robustez(
-    politica_base: &HashMap<String, String>,
-    landa: f64,
-) -> Vec<(String, usize)> {
-    let mut resultados = Vec::new();
-
-    for (izq, centro, der) in MODELOS_RUIDO.iter() {
-        let porcentaje_exito = (*centro * 100.0) as usize;
-        let etiqueta = format!(
-            "{}% éxito ({}% L/R)",
-            porcentaje_exito,
-            (*izq * 100.0) as usize
-        );
-        let modelo_ruido = construir_modelo_ruido(*izq, *centro, *der);
-
-        // Usar umbral más estricto
-        let (_, politica_adaptada) = value_iteration(landa, Some(1e-6), Some(&modelo_ruido));
-
-        let cambios = politica_base
-            .iter()
-            .filter(|(estado, accion)| match politica_adaptada.get(*estado) {
-                Some(a) => a != *accion,
-                None => true,
-            })
-            .count();
-
-        resultados.push((etiqueta, cambios));
-    }
-
-    resultados
 }

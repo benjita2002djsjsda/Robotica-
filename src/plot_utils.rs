@@ -23,49 +23,8 @@ pub fn leer_recompensas_csv(path: &str) -> Vec<(f64, f64, f64)> {
 }
 
 pub fn graficar_resultados_finales(
-    graficos_robustez: &Vec<(f64, Vec<(String, usize)>)>,
     resumen_recompensas: &Vec<(f64, f64, f64)>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    // === Primer gráfico: robustez ===
-    let root = BitMapBackend::new("robustez_politicas.png", (960, 640)).into_drawing_area();
-    root.fill(&WHITE)?;
-
-    let n = graficos_robustez.len();
-    let cols = 2;
-    let rows = (n as f64 / cols as f64).ceil() as usize;
-    let areas = root.split_evenly((rows, cols));
-
-    for (i, (landa, resultados)) in graficos_robustez.iter().enumerate() {
-        if i >= areas.len() {
-            break;
-        }
-        let area = &areas[i];
-        let etiquetas: Vec<String> = resultados.iter().map(|r| r.0.clone()).collect();
-        let cambios: Vec<usize> = resultados.iter().map(|r| r.1).collect();
-        let max_val = *cambios.iter().max().unwrap_or(&0) as i32;
-
-        let mut chart = ChartBuilder::on(area)
-            .caption(format!("λ = {:.2}", landa), ("sans-serif", 20))
-            .margin(10)
-            .x_label_area_size(30)
-            .y_label_area_size(30)
-            .build_cartesian_2d(0..etiquetas.len() as i32, 0..(max_val + 1))?;
-
-        chart.configure_mesh().x_labels(5).draw()?;
-        chart
-            .configure_mesh()
-            .x_desc("Nivel de ruido")
-            .y_desc("Cambios en política")
-            .draw()?;
-
-        chart.draw_series(cambios.iter().enumerate().map(|(i, val)| {
-            Rectangle::new(
-                [(i as i32, 0), ((i + 1) as i32, *val as i32)],
-                BLUE.mix(0.5).filled(),
-            )
-        }))?;
-    }
-
     // === Tercer gráfico: recompensa media según lambda y éxito ===
     let root3 = BitMapBackend::new("recompensa_media.png", (800, 500)).into_drawing_area();
     root3.fill(&WHITE)?;
