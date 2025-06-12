@@ -87,8 +87,6 @@ async fn main() {
                     "⬛" // Obstáculos
                 } else if *estado == config::ESTADO_META {
                     "🎯" // Estado meta
-                } else if config::ESTADOS_PELIGRO.contains(estado) {
-                    "⚠️" // Estados peligrosos
                 } else {
                     // Dirección óptima según la política
                     match politica.get(*estado).map(String::as_str) {
