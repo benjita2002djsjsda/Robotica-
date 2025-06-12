@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 /// Módulo de análisis de robustez - Evaluación bajo diferentes niveles de ruido
 /// Los modelos van desde alta precisión (90% éxito) hasta alta incertidumbre (50% éxito)
+/// para políticas generadas con Q-Value Iteration
 ///
 pub const MODELOS_ROBUSTEZ: &[(f64, f64, f64)] = &[
     (0.1, 0.8, 0.1),   // Modelo estándar: 80% éxito, 20% ruido
@@ -14,7 +15,8 @@ pub const MODELOS_ROBUSTEZ: &[(f64, f64, f64)] = &[
 ///
 /// Crea un modelo donde cada acción tiene una probabilidad de éxito y probabilidades
 /// de error en las direcciones perpendiculares. Simula la incertidumbre real en
-/// sistemas robóticos donde los movimientos no siempre son perfectos.
+/// sistemas robóticos donde los movimientos no siempre son perfectos. Se usa
+/// para evaluar la robustez de las políticas obtenidas con Q-Value Iteration.
 pub fn construir_modelo_ruido(
     izq: f64,
     centro: f64,

@@ -70,7 +70,7 @@ pub fn construir_matriz_transicion(accion: &str) -> Array2<f32> {
 ///
 /// Construye las matrices de transición para las cuatro acciones cardinales
 /// (N, S, E, O) y las exporta como archivos CSV separados. Útil para análisis
-/// externos, visualización o verificación del modelo.
+/// externos, visualización o verificación del modelo usado en Q-Value Iteration.
 pub fn guardar_matrices_transicion_csv() {
     for accion in ["N", "S", "E", "O"] {
         let matriz = construir_matriz_transicion(accion);

@@ -525,6 +525,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "mdp_q_value_iteration"
+version = "0.1.0"
+dependencies = [
+ "csv",
+ "itertools",
+ "macroquad",
+ "ndarray",
+ "plotters",
+ "rand",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "memchr"
 version = "2.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -719,20 +733,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "02b3e5e68a3a1a02aad3ec490a98007cbc13c37cbe84a3cd7b8e406d76e7f778"
 dependencies = [
  "unicode-ident",
-]
-
-[[package]]
-name = "proyecto_robotica"
-version = "0.1.0"
-dependencies = [
- "csv",
- "itertools",
- "macroquad",
- "ndarray",
- "plotters",
- "rand",
- "serde",
- "serde_json",
 ]
 
 [[package]]

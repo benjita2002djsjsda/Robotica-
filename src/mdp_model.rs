@@ -48,28 +48,39 @@ pub fn mover(fila: usize, col: usize, accion: &str) -> (isize, isize) {
     }
 }
 
-/// Implementación del algoritmo Value Iteration para resolver el MDP
+/// Algoritmo Q-Value Iteration para resolver el MDP
 ///
-/// Calcula iterativamente los valores óptimos de cada estado y la política óptima
-/// hasta alcanzar convergencia. Utiliza la ecuación de Bellman para actualizar
-/// los valores de estado basándose en las recompensas inmediatas y los valores
-/// futuros descontados.
+/// Calcula la matriz Q(s,a) completa y deriva V(s) y π(s) óptimos.
+/// Utiliza la ecuación de Bellman: Q(s,a) = R(s) + γ * Σ P(s'|s,a) * max_a' Q(s',a')
 
-pub fn value_iteration(
+pub fn q_value_iteration(
     lambda: f64,
     epsilon: Option<f64>,
     prob_transicion_externa: Option<&HashMap<String, HashMap<String, f64>>>,
-) -> (HashMap<&'static str, f64>, HashMap<String, String>) {
+) -> (
+    HashMap<String, HashMap<String, f64>>,
+    HashMap<String, String>,
+    HashMap<String, f64>,
+) {
     let epsilon = epsilon.unwrap_or(UMBRAL_CONVERGENCIA);
-    let mut v: HashMap<&'static str, f64> = HashMap::new();
+
+    // Estructura para almacenar Q-valores: Q(estado, acción)
+    let mut q_valores: HashMap<String, HashMap<String, f64>> = HashMap::new();
     let mut politica: HashMap<String, String> = HashMap::new();
 
     let recompensas_map = obtener_recompensas();
+    let acciones_disponibles = acciones();
 
-    // Inicialización: todos los valores en cero (excepto obstáculos)
+    // Inicialización: todos los Q-valores en cero
     for fila in MAPA_ESTADOS.iter() {
         for estado in fila.iter() {
-            v.insert(*estado, 0.0);
+            if !OBSTACULOS.contains(estado) {
+                let mut q_estado = HashMap::new();
+                for accion in &acciones_disponibles {
+                    q_estado.insert(accion.to_string(), 0.0);
+                }
+                q_valores.insert(estado.to_string(), q_estado);
+            }
         }
     }
 
@@ -91,22 +102,29 @@ pub fn value_iteration(
             None
         };
 
-    // Bucle principal de Value Iteration
+    // Bucle principal de Q-Value Iteration
     let mut cambios;
     loop {
-        let mut delta: f64 = 0.0; // Máximo cambio en valores durante esta iteración
-        let mut v_nuevo = v.clone();
+        let mut delta: f64 = 0.0;
+        let mut q_nuevo = q_valores.clone();
 
-        // Actualización de valor para cada estado no-obstáculo
+        // Actualización de Q-valor para cada par (estado, acción)
         for fila in MAPA_ESTADOS.iter() {
             for estado in fila.iter() {
                 if OBSTACULOS.contains(estado) {
-                    continue; // Los obstáculos no se procesan
+                    continue;
                 }
+
+                // Estados terminales tienen Q-valor igual a su recompensa
                 if *estado == ESTADO_META {
-                    // Estado terminal: valor = recompensa inmediata, sin política
-                    v_nuevo.insert(*estado, recompensas_map.get(estado).copied().unwrap_or(0.0));
-                    politica.insert(estado.to_string(), String::new());
+                    for accion in &acciones_disponibles {
+                        let recompensa_terminal =
+                            recompensas_map.get(estado).copied().unwrap_or(0.0);
+                        q_nuevo
+                            .get_mut(&estado.to_string())
+                            .unwrap()
+                            .insert(accion.to_string(), recompensa_terminal);
+                    }
                     continue;
                 }
 
@@ -115,12 +133,8 @@ pub fn value_iteration(
                     Err(_) => continue,
                 };
 
-                let mut mejor_valor = f64::NEG_INFINITY;
-                let mut mejor_accion = String::new();
-
-                // Evaluación de cada acción posible (ecuación de Bellman)
-                for accion in acciones().iter() {
-                    // Obtener probabilidades de transición para esta acción
+                // Calcular Q(s,a) para cada acción en este estado
+                for accion in &acciones_disponibles {
                     let prob_accion = match prob_transicion_externa {
                         Some(dct) => dct.get(&accion.to_string()).unwrap(),
                         None => modelo_base
@@ -130,43 +144,83 @@ pub fn value_iteration(
                             .unwrap(),
                     };
 
-                    let mut valor_esperado = 0.0;
+                    let mut q_valor = 0.0;
 
-                    // Cálculo del valor esperado considerando todas las transiciones posibles
+                    // Ecuación de Bellman para Q-valores: Q(s,a) = R(s) + γ * Σ P(s'|s,a) * max_a' Q(s',a')
                     for (resultado, probabilidad) in prob_accion.iter() {
                         let (nueva_fila, nueva_col) = mover(fila_actual, col_actual, resultado);
                         let estado_destino = match obtener_estado(nueva_fila, nueva_col) {
-                            Some(e) => e,
-                            None => *estado, // Si el movimiento es inválido, quedarse en el mismo estado
+                            Some(e) => e.to_string(),
+                            None => estado.to_string(),
                         };
-                        valor_esperado += probabilidad * v.get(estado_destino).unwrap_or(&0.0);
+
+                        // Encontrar max_a' Q(s',a') para el estado destino
+                        let max_q_destino = if let Some(q_destino) = q_valores.get(&estado_destino)
+                        {
+                            q_destino
+                                .values()
+                                .fold(f64::NEG_INFINITY, |max, &val| max.max(val))
+                        } else {
+                            0.0
+                        };
+
+                        q_valor += probabilidad * max_q_destino;
                     }
 
-                    // Ecuación de Bellman: R(s) + γ * Σ P(s'|s,a) * V(s')
-                    let valor_total =
-                        recompensas_map.get(estado).unwrap_or(&0.0) + lambda * valor_esperado;
+                    // Q(s,a) = R(s) + γ * valor_esperado
+                    let q_final = recompensas_map.get(estado).unwrap_or(&0.0) + lambda * q_valor;
 
-                    // Selección de la mejor acción (política greedy)
-                    if valor_total > mejor_valor {
-                        mejor_valor = valor_total;
-                        mejor_accion = accion.to_string();
-                    }
+                    // Actualizar Q-valor y calcular cambio máximo
+                    let q_anterior = q_valores
+                        .get(&estado.to_string())
+                        .unwrap()
+                        .get(&accion.to_string())
+                        .unwrap_or(&0.0);
+                    delta = delta.max((q_anterior - q_final).abs());
+
+                    q_nuevo
+                        .get_mut(&estado.to_string())
+                        .unwrap()
+                        .insert(accion.to_string(), q_final);
                 }
-
-                // Actualización del valor y seguimiento del cambio máximo
-                delta = delta.max((v.get(estado).unwrap_or(&0.0) - mejor_valor).abs());
-                v_nuevo.insert(*estado, mejor_valor);
-                politica.insert(estado.to_string(), mejor_accion);
             }
         }
 
         // Verificación de convergencia
         cambios = delta > epsilon;
         if !cambios {
-            break; // Convergencia alcanzada
+            break;
         }
-        v = v_nuevo;
+        q_valores = q_nuevo;
     }
 
-    (v, politica)
+    // Derivar política óptima y valores V(s) desde los Q-valores
+    let mut v_valores: HashMap<String, f64> = HashMap::new();
+
+    for fila in MAPA_ESTADOS.iter() {
+        for estado in fila.iter() {
+            if OBSTACULOS.contains(estado) {
+                continue;
+            }
+
+            if let Some(q_estado) = q_valores.get(&estado.to_string()) {
+                // Encontrar la mejor acción: π(s) = argmax_a Q(s,a)
+                let mut mejor_accion = String::new();
+                let mut mejor_q_valor = f64::NEG_INFINITY;
+
+                for (accion, &q_val) in q_estado.iter() {
+                    if q_val > mejor_q_valor {
+                        mejor_q_valor = q_val;
+                        mejor_accion = accion.clone();
+                    }
+                }
+
+                // V(s) = max_a Q(s,a)
+                v_valores.insert(estado.to_string(), mejor_q_valor);
+                politica.insert(estado.to_string(), mejor_accion);
+            }
+        }
+    }
+
+    (q_valores, politica, v_valores)
 }

@@ -15,19 +15,19 @@ use std::collections::HashMap;
 /// Proporciona simulación gráfica usando Macroquad donde se puede observar
 /// al robot navegando por el mundo siguiendo la política óptima calculada.
 
-const TAMANO_CELDA: f32 = 80.0; // Tamaño de cada celda en píxeles
-const MARGEN: f32 = 2.0; // Espaciado entre celdas
-const COLOR_NORMAL: Color = GRAY; // Color para estados normales
-const COLOR_PELIGRO: Color = RED; // Color para estados peligrosos
-const COLOR_META: Color = GREEN; // Color para el estado meta
-const COLOR_ROBOT: Color = BLUE; // Color para la posición actual del agente
-const COLOR_OBSTACULO: Color = DARKGRAY; // Color para obstáculos
+const TAMANO_CELDA: f32 = 80.0;
+const MARGEN: f32 = 2.0;
+const COLOR_NORMAL: Color = GRAY;
+const COLOR_PELIGRO: Color = RED;
+const COLOR_META: Color = GREEN;
+const COLOR_ROBOT: Color = BLUE;
+const COLOR_OBSTACULO: Color = DARKGRAY;
 
-/// Ejecuta una simulación visual interactiva del agente MDP
+/// Ejecuta una simulación visual interactiva del agente MDP usando Q-Value Iteration
 ///
 /// Muestra una ventana gráfica donde el robot se mueve por el mundo siguiendo
-/// la política óptima. La simulación es determinística y sigue exactamente
-/// las acciones dictadas por la política sin ruido adicional.
+/// la política óptima calculada con Q-Value Iteration. La simulación es determinística
+/// y sigue exactamente las acciones dictadas por la política sin ruido adicional.
 
 pub async fn ejecutar_simulacion(
     politica: &HashMap<String, String>,
@@ -135,7 +135,7 @@ pub async fn ejecutar_simulacion(
             break;
         }
 
-        // Ejecución de movimiento siguiendo la política óptima (determinística)
+        // Ejecución de movimiento siguiendo la política óptima de Q-Value Iteration (determinística)
         let accion = politica.get(&estado_actual).unwrap().clone();
 
         if let Ok((fila_act, col_act)) = obtener_posicion(&estado_actual) {
@@ -181,7 +181,8 @@ fn mover(fila: usize, col: usize, accion: &str) -> (usize, usize) {
 ///
 /// A diferencia de la simulación visual, esta función realiza múltiples pasos
 /// considerando probabilidades de éxito en los movimientos y reinicios automáticos
-/// cuando se alcanza la meta o se cae en peligro.
+/// cuando se alcanza la meta o se cae en peligro. Sigue las políticas generadas
+/// por Q-Value Iteration.
 
 pub fn simulacion_1000_pasos(
     politica: &HashMap<String, String>,

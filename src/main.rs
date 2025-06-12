@@ -1,14 +1,16 @@
-// src/main.rs
-// Programa principal - Análisis completo de MDP con Value Iteration
-
 /// Módulo principal del proyecto de análisis MDP
 ///
 /// Implementa un análisis completo de un Proceso de Decisión de Markov incluyendo:
-/// - Cálculo de políticas óptimas con Value Iteration
+/// - Cálculo de políticas óptimas con Q-Value Iteration (Q(s,a))
 /// - Simulación visual interactiva del agente
 /// - Análisis de robustez bajo diferentes niveles de ruido
 /// - Generación de visualizaciones y reportes en CSV
 /// - Evaluación de rendimiento bajo múltiples parámetros
+///
+/// ALGORITMO IMPLEMENTADO: Q-Value Iteration
+/// - Calcula Q(s,a) para todos los pares estado-acción
+/// - Política óptima: π(s) = argmax_a Q(s,a)
+/// - Valores de estado: V(s) = max_a Q(s,a)
 mod config;
 mod experimentos;
 mod mdp_model;
@@ -18,15 +20,16 @@ mod simulation;
 mod transition_matrices;
 
 use config::obtener_recompensas;
-use mdp_model::value_iteration;
+use mdp_model::q_value_iteration;
 use plot_utils::{graficar_recompensas_barras, graficar_resultados_finales, leer_recompensas_csv};
 use robustness::{construir_modelo_ruido, MODELOS_ROBUSTEZ};
 use simulation::{ejecutar_simulacion, simulacion_1000_pasos};
+use std::collections::HashMap;
 use transition_matrices::guardar_matrices_transicion_csv;
 
-/// Función principal - Orquesta el análisis completo del MDP
+/// Función principal - Orquesta el análisis completo del MDP usando Q-Value Iteration
 
-#[macroquad::main("Simulacion MDP Robot")]
+#[macroquad::main("Simulacion MDP Robot - Q-Value Iteration")]
 async fn main() {
     // Configuración del espacio de parámetros para el análisis
     let factores_landa = vec![0.86, 0.90, 0.94, 0.98]; // Factores de descuento a evaluar
@@ -38,12 +41,18 @@ async fn main() {
 
     // === FASE 1: CÁLCULO DE POLÍTICAS ÓPTIMAS Y EVALUACIÓN INICIAL ===
     for &landa in &factores_landa {
-        println!("\n=== Ejecutando Value Iteration para λ = {:.2} ===", landa);
+        println!(
+            "\n=== Ejecutando Q-Value Iteration para λ = {:.2} ===",
+            landa
+        );
         println!("Resultados de simulaciones de 1000 pasos:");
         println!("----------------------------------------");
 
-        // Cálculo de la política óptima para este factor de descuento
-        let (valores, politica) = value_iteration(landa, Some(0.001), None);
+        // Cálculo de la política óptima usando Q-Value Iteration Q(s,a)
+        let (_q_valores, politica, v_valores) = q_value_iteration(landa, Some(0.001), None);
+
+        // Convertir v_valores de HashMap<String, f64> a HashMap<&str, f64> para compatibilidad
+        let valores: HashMap<&str, f64> = v_valores.iter().map(|(k, &v)| (k.as_str(), v)).collect();
 
         // Evaluación de rendimiento bajo diferentes niveles de ruido
         for &prob in &probabilidades_exito {
@@ -116,8 +125,8 @@ async fn main() {
         for (izq, centro, der) in MODELOS_ROBUSTEZ.iter() {
             // Recálculo de política óptima bajo el modelo de ruido específico
             let modelo_ruido = construir_modelo_ruido(*izq, *centro, *der);
-            let (_valores, politica_adaptada) =
-                value_iteration(*lambda, Some(0.001), Some(&modelo_ruido));
+            let (_q_valores, politica_adaptada, _v_valores) =
+                q_value_iteration(*lambda, Some(0.001), Some(&modelo_ruido));
 
             // Evaluación de rendimiento con la política adaptada al ruido
             let (metas, peligros, _recompensa) =

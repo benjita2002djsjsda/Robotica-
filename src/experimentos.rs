@@ -1,11 +1,11 @@
 use crate::config::{obtener_recompensas, ESTADO_META, MAPA_ESTADOS, OBSTACULOS};
-use crate::mdp_model::{mover, obtener_estado, obtener_posicion, value_iteration};
+use crate::mdp_model::{mover, obtener_estado, obtener_posicion, q_value_iteration};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::fs::File;
 use std::io::Write;
 
-/// Módulo de experimentos para análisis de rendimiento del MDP
+/// Módulo de experimentos para análisis de rendimiento del MDP usando Q-Value Iteration
 /// Contiene funciones para simular episodios y generar datos CSV
 
 pub fn simular_y_guardar_csv(
@@ -27,8 +27,9 @@ pub fn simular_y_guardar_csv(
             let f_der = f_izq;
             let modelo = crate::robustness::construir_modelo_ruido(f_izq, f_centro, f_der);
 
-            // Cálculo de la política óptima usando value iteration
-            let (_valores, politica) = value_iteration(landa, Some(0.001), Some(&modelo));
+            // Cálculo de la política óptima usando Q-Value Iteration
+            let (_q_valores, politica, _v_valores) =
+                q_value_iteration(landa, Some(0.001), Some(&modelo));
 
             let mut total_recompensa = 0.0;
 

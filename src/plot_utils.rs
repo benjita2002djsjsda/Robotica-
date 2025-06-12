@@ -3,6 +3,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 
 /// Módulo de utilidades de visualización - Generación de gráficos y análisis visual
+/// para resultados de Q-Value Iteration
 
 pub fn leer_recompensas_csv(path: &str) -> Vec<(f64, f64, f64)> {
     let file = File::open(path).expect("No se pudo abrir el archivo CSV");
@@ -28,8 +29,8 @@ pub fn leer_recompensas_csv(path: &str) -> Vec<(f64, f64, f64)> {
 /// Genera un gráfico de dispersión (scatter plot) con mapa de calor
 ///
 /// Crea una visualización donde cada punto representa una combinación de parámetros
-/// (lambda, probabilidad_éxito) y el color del punto indica la recompensa obtenida.
-/// Útil para identificar regiones óptimas en el espacio de parámetros.
+/// (lambda, probabilidad_éxito) y el color del punto indica la recompensa obtenida
+/// usando Q-Value Iteration. Útil para identificar regiones óptimas en el espacio de parámetros.
 
 pub fn graficar_resultados_finales(
     resumen_recompensas: &Vec<(f64, f64, f64)>,
@@ -64,7 +65,10 @@ pub fn graficar_resultados_finales(
 
     // Construcción del sistema de coordenadas del gráfico
     let mut chart = ChartBuilder::on(&root3)
-        .caption("Recompensa media según λ y éxito", ("sans-serif", 20))
+        .caption(
+            "Recompensa media según λ y éxito (Q-Value Iteration)",
+            ("sans-serif", 20),
+        )
         .margin(20)
         .x_label_area_size(40)
         .y_label_area_size(40)
@@ -127,8 +131,8 @@ pub fn graficar_resultados_finales(
 /// Genera gráficos de barras agrupados por factor de descuento (lambda)
 ///
 /// Crea un panel con 4 subgráficos (2x2), cada uno mostrando cómo varía la
-/// recompensa promedio según la probabilidad de éxito para un valor fijo de lambda.
-/// Útil para comparar el comportamiento bajo diferentes niveles de descuento.
+/// recompensa promedio según la probabilidad de éxito para un valor fijo de lambda
+/// usando Q-Value Iteration. Útil para comparar el comportamiento bajo diferentes niveles de descuento.
 
 pub fn graficar_recompensas_barras(
     datos: &[(f64, f64, f64)],
@@ -178,7 +182,10 @@ pub fn graficar_recompensas_barras(
         // Construcción del sistema de coordenadas para este subgráfico
         let mut chart = ChartBuilder::on(area)
             .caption(
-                format!("Recompensa vs Prob. Éxito (λ = {:.2})", landa),
+                format!(
+                    "Recompensa vs Prob. Éxito (λ = {:.2}) - Q-Value Iteration",
+                    landa
+                ),
                 ("sans-serif", 20),
             )
             .margin(10)

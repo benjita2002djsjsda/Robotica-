@@ -2,16 +2,12 @@
 use std::collections::HashMap;
 
 /// Módulo de configuración del MDP - Definición del mundo y parámetros
-///
-/// Contiene todas las constantes, estructuras de datos y configuraciones
-/// necesarias para definir el entorno del Proceso de Decisión de Markov,
-/// incluyendo el mapa de estados, recompensas y probabilidades de transición.
 
 pub const FILAS_MAPA: usize = 6;
 pub const COLUMNAS_MAPA: usize = 8;
 
 pub const INTERVALO_MOVIMIENTO: f64 = 0.5; // Intervalo de tiempo entre movimientos en segundos
-pub const UMBRAL_CONVERGENCIA: f64 = 0.001; // Umbral de convergencia para Value Iteration
+pub const UMBRAL_CONVERGENCIA: f64 = 0.001; // Umbral de convergencia para Q-Value Iteration
 
 pub const ESTADO_META: &str = "M";
 pub const ESTADOS_PELIGRO: [&str; 4] = ["P1", "P2", "P3", "P4"];
@@ -56,10 +52,6 @@ pub fn acciones() -> Vec<&'static str> {
 }
 
 /// Construye el modelo estocástico de transiciones para cada acción
-///
-/// Define las probabilidades de transición considerando ruido en el movimiento:
-/// - 80% de probabilidad de moverse en la dirección deseada
-/// - 20% dividido equitativamente entre las direcciones perpendiculares
 
 pub fn prob_transicion() -> HashMap<&'static str, HashMap<&'static str, f64>> {
     HashMap::from([

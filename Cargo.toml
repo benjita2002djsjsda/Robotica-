@@ -1,5 +1,5 @@
 [package]
-name = "proyecto_robotica"
+name = "mdp_q_value_iteration"
 version = "0.1.0"
 edition = "2021"
 
